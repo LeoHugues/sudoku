@@ -79,16 +79,16 @@ function main() {
             [0,0,0,  0,4,0,  0,0,9]
         ];
 
-    $resolver = new Resolver();
+    $resolver = new Resolver2();
 
     echo "Grille a resoudre :<br><br>";
-    $resolver->affichage($grilleDiabolique);
+    $resolver->affichage($grilleFacile);
 
-    $resolver->resolve($grilleDiabolique);
+    $resolver->resolve($grilleFacile);
     echo "Grille resolue :<br><br>";
     $resolver->affichage($resolver->grilleResolu);
 
-    echo '<br> Nombre d\'iteration pour resoudre la grille : ' . $resolver->itération;
+    echo '<br> Nombre d\'iteration pour resoudre la grille : ' . $resolver->iteration;
 }
 
 
@@ -97,9 +97,10 @@ function main() {
  *
  * classe qui contient toutes les méthodes pour résoudre une grille de sudoku
  */
-class Resolver {
-     public $grilleResolu = array();
-     public $itération = 0;
+class Resolver2 {
+    public $grilleResolu = array();
+    public $iteration = 0;
+    public $position = array();
 
     /**
      * Fonction d'affichage
@@ -182,52 +183,46 @@ class Resolver {
     }
 
     /**
-     * Fonction récursive qui va résoudre le sudoku
+     * Fonction permettant de tester toutes valeurs possible pour une case
+     * et y attribuer une valeurs uniquement si celle-ci est implicite...
      *
      * @param $grille
-     * @param $position
-     * @return bool
      */
-    function estValide ($grille, $position)
+    function testeCase ($grille)
     {
-        // On incrémente le nombre d'itération à chaque fois que l'on passe dans la fonction
-        $this->itération++;
-
-        // Si on est à la 82e case (on sort du tableau)
-        if ($position == 9*9) {
-            return true;
-        }
-
-        // On récupère les coordonnées de la case
-        $i = $position/9;
-        $j = $position%9;
-
-        // Si la case n'est pas vide, on passe à la suivante (appel récursif)
-        if ($grille[$i][$j] != 0) {
-            return $this->estValide($grille, $position+1);
-        }
-
-        // Backtracking
-
-        // énumération des valeurs possibles
-        for ($k=1; $k <= 9; $k++) {
-            // Si la valeur est absente, donc autorisée à être notée dans la case
+        $i = $this->position['ligne'];
+        $j = 0;
+        for($k = 1; $k < 10; $k++) {
             if ($this->absentSurLigne($k,$grille,$i) && $this->absentSurColonne($k,$grille,$j) && $this->absentSurBloc($k,$grille,$i,$j)) {
-                // On enregistre k dans la grille
-                $grille[$i][$j] = $k;
-                $this->grilleResolu[$i][$j] = $k;
-
-                // On appelle récursivement la fonction estValide(), pour voir si ce choix est bon par la suite
-                if ( $this->estValide ($grille, $position+1) ) {
-                    return true; // Si le choix est bon, plus la peine de continuer, on renvoie true :)
+                $autreEndroitPossible = false;
+                foreach ($grille[$i] as $case) { // Pour toutes les cases de la ligne
+                    if ($case == 0 && $this->position['colone'] != $j) { // On regarde si c'est une case vierge et pas la position de la case testé
+                        if ($this->absentSurLigne($k,$grille,$i) && $this->absentSurColonne($k,$grille,$j) && $this->absentSurBloc($k,$grille,$i,$j) ) { // Et si il n'existe pas d'autres endroits possible pour la valeur
+                            $autreEndroitPossible = true;
+                        }
+                    }
+                    $j++;
+                }
+                $j = 0;
+                if ($autreEndroitPossible == false) {// Si la valeur est obligatoirement ici on la note dans la grille
+                    echo $this->position['ligne'] . " " . $this->position['colone'] . " => " . $k . "<br>";
+                    $grille[$this->position['ligne']][$this->position['colone']] = $k;
+                    $this->grilleResolu[$this->position['ligne']][$this->position['colone']] = $k;
+                    $this->iteration++;
                 }
             }
         }
-        // Tous les chiffres ont été testés, aucun n'est bon, on réinitialise la case
-        $grille[$i][$j] = 0;
+    }
 
-        // Puis on retourne false :(
-        return false;
+    public function grilleComplete($grille) {
+        foreach ($grille as $ligne) {
+            foreach ($ligne as $case) {
+                if ($case == 0) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /**
@@ -235,7 +230,28 @@ class Resolver {
      */
     public function resolve($grille) {
         $this->grilleResolu = $grille;
-        $this->itération = 0;
-        $this->estValide($grille, 0);
+        $this->iteration = 0;
+        $this->position['ligne'] = 0;
+        $this->position['colone'] = 0;
+$nbtest = 0;
+        while (!$this->grilleComplete($this->grilleResolu)) {
+            //$this->iteration++;
+            $nbtest++;
+            if ($this->iteration > 20) {
+                var_dump($this->iteration);var_dump($nbtest);
+                $this->affichage($this->grilleResolu);die;
+            }
+            foreach ($grille as $ligne) {
+                foreach ($ligne as $case) {
+                    if ($case == 0) {
+                        $this->testeCase($this->grilleResolu);
+                    }
+                    $this->position['colone']++;
+                }
+                $this->position['colone'] = 0;
+                $this->position['ligne']++;
+            }
+            $this->position['ligne'] = 0;
+        }
     }
 }
